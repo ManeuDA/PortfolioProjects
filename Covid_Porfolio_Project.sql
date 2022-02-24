@@ -45,7 +45,7 @@ WHERE location in ('Canada', 'Germany', 'South Korea', 'United States')
 ORDER BY 1,2
 
 
--- Looking at Countries with Highest Infection Rate compared to Population 
+-- Looking at Countries with Average Infection Rate compared to Population 
 -- Metric for Total Infection Count: MAX(total_Cases)
 -- Metric for Percentage of Infected Population: MAX(total_cases/population)*100 
 -- Note: NULLIF(population,0) used to avoid ERROR message
@@ -55,7 +55,7 @@ FROM PortfolioProject..[Covid Death]
 GROUP BY continent, location, population
 ORDER BY PercentageCovidPopulation desc
 
--- Showing Countries with Total Deaths Count per Population 
+-- Showing Countries with Total Deaths Count 
 SELECT continent, location, MAX(total_deaths) as TotalDeathCount
 FROM PortfolioProject..[Covid Death]
 --WHERE location in ('Canada', 'Germany', 'South Korea', 'United States')
@@ -95,7 +95,7 @@ SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinatio
 -- If I only partition by dea.location, the new_vaccinations column will start sum as well. 
 -- IMPORTANT to use ORDER BY dea.location and dea.date so that counting only for RollingTotalVaccinations Column 
 FROM PortfolioProject..[Covid Death] dea
-Join PortfolioProject..[Covid Vaccination] vac
+JOIN PortfolioProject..[Covid Vaccination] vac
 	ON dea.location = vac.location
 	and dea.date = vac.date 
 ORDER BY 1,2,3
@@ -110,7 +110,7 @@ SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinatio
 -- If I only partition by dea.location, the new_vaccinations column will start sum as well. 
 -- IMPORTANT to use ORDER BY dea.location and dea.date so that counting only for RollingTotalVaccinations Column 
 FROM PortfolioProject..[Covid Death] dea
-Join PortfolioProject..[Covid Vaccination] vac
+JOIN PortfolioProject..[Covid Vaccination] vac
 	ON dea.location = vac.location
 	and dea.date = vac.date 
 --ORDER BY 2,3
@@ -138,7 +138,7 @@ FROM PopvsVac
 
 
 
--- TEMP TABLE (TEMPORARY TABLE) 
+-- CREATE TABLE (CREATE TABLE) 
 -- JOIN TWO TABLES 
 DROP TABLE IF exists #RollingPercentPopulationVaccinated -- If any change is made in the table below, it won't affect the outcome 
 CREATE TABLE #RollingPercentPopulationVaccinated 
@@ -154,6 +154,7 @@ RollingTotalVaccinations numeric
 INSERT INTO #RollingPercentPopulationVaccinated
 SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
 , SUM(vac.new_vaccinations) OVER (Partition by dea.location ORDER BY dea.location, dea.date) as RollingTotalVaccinations
+FROM PortfolioProject..[Covid Death] dea
 JOIN PortfolioProject..[Covid Vaccination] vac
 	ON dea.location = vac.location
 	and dea.date = vac.date 
