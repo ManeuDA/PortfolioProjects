@@ -46,24 +46,24 @@ ORDER BY 1,2
 
 
 -- Looking at Countries with Highest Infection Rate compared to Population 
--- Metric for Highest Infection Rate: MAX(total_Cases)
+-- Metric for Total Infection Count: MAX(total_Cases)
 -- Metric for Percentage of Infected Population: MAX(total_cases/population)*100 
 -- Note: NULLIF(population,0) used to avoid ERROR message
-SELECT continent, location, population, MAX(total_cases) as TotalInfectionCount, MAX(total_cases/NULLIF(population,0))*100 as PercentageCovidPopulation
+SELECT continent, location, population, SUM(new_cases) as TotalInfectionCount, MAX(total_cases/NULLIF(population,0))*100 as PercentageCovidPopulation
 FROM PortfolioProject..[Covid Death]
 --WHERE location in ('Canada', 'Germany', 'South Korea', 'United States')
 GROUP BY continent, location, population
 ORDER BY PercentageCovidPopulation desc
 
--- Showing Countries with Highest Death Count per Population 
+-- Showing Countries with Total Deaths Count per Population 
 SELECT continent, location, MAX(total_deaths) as TotalDeathCount
 FROM PortfolioProject..[Covid Death]
 --WHERE location in ('Canada', 'Germany', 'South Korea', 'United States')
 GROUP BY continent, location
 ORDER BY TotalDeathCount desc 
 
--- Looking Covid Highest Death Count by Continent 
-SELECT continent, MAX(total_deaths) as TotalDeathCount
+-- Looking Covid Total Deaths Count by Continent 
+SELECT continent, SUM(new_cases) as TotalDeathCount
 FROM PortfolioProject..[Covid Death]
 --WHERE location in ('Canada', 'Germany', 'South Korea', 'United States')
 GROUP BY continent
@@ -71,7 +71,8 @@ ORDER BY TotalDeathCount desc
 
 -- GLOBAL Daily Numbers 
 -- Metric: SUM(new_deaths)/SUM(Nullif(new_cases,0))*100
-SELECT location, date, SUM(new_cases) as DailyTotalGlobalCases, SUM(new_deaths) as DailyTotalGlobalDeaths, SUM(new_deaths)/SUM(Nullif(new_cases,0))*100 as DailyTotalDeathPercentage
+SELECT location, date, SUM(new_cases) as DailyTotalGlobalCases, SUM(new_deaths) as DailyTotalGlobalDeaths
+, SUM(new_deaths)/SUM(Nullif(new_cases,0))*100 as DailyTotalDeathPercentage
 FROM PortfolioProject..[Covid Death]
 --WHERE location in ('Canada', 'Germany', 'South Korea', 'United States')
 GROUP BY location, date
@@ -79,7 +80,8 @@ ORDER BY 1,2
 
 -- GLOBAL NUMBERS
 -- Metric:SUM(new_deaths)/sum(nullif(new_cases,0))*100
-SELECT SUM(new_cases) as TotalGlobalCases, SUM(new_deaths) as TotalGlobalDeaths, SUM(new_deaths)/sum(nullif(new_cases,0))*100 as TotalDeathPercentage
+SELECT SUM(new_cases) as TotalGlobalCases, SUM(new_deaths) as TotalGlobalDeaths
+, SUM(new_deaths)/sum(nullif(new_cases,0))*100 as TotalDeathPercentage
 FROM PortfolioProject..[Covid Death]
 --WHERE location in ('Canada', 'Germany', 'South Korea', 'United States')
 --GROUP BY date
@@ -89,8 +91,9 @@ ORDER BY 1,2
 -- JOIN TWO TABLES 
 SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, dea.date 
 , SUM(vac.new_vaccinations) OVER (Partition by dea.location ORDER BY dea.location, dea, date) as RollingTotalVaccinations
---, (RollingTotalVaccinations/population)*100 --> Gives you an ERROR because you can't use a column you just created.  USE CTE below.
--- If I only partition by dea.location, the new_vaccinations column will start sum as well. IMPORTANT to use ORDER BY dea.location and dea.date so that counting only for TotalVaccinations Column 
+--, (RollingTotalVaccinations/population)*100 --> Gives you an ERROR because you can't use a column you just created.  
+-- If I only partition by dea.location, the new_vaccinations column will start sum as well. 
+-- IMPORTANT to use ORDER BY dea.location and dea.date so that counting only for RollingTotalVaccinations Column 
 FROM PortfolioProject..[Covid Death] dea
 Join PortfolioProject..[Covid Vaccination] vac
 	ON dea.location = vac.location
@@ -103,8 +106,9 @@ AS
 (
 SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
 , SUM(vac.new_vaccinations) OVER (Partition by dea.location ORDER BY dea.location, dea.date) as RollingTotalVaccinations
---, (RollingTotalVaccinations/population)*100 --> Gives you an ERROR because you can't use a column you just created.  USE CTE ór 
--- If I only partition by dea.location, the new_vaccinations column will start sum as well. IMPORTANT to use ORDER BY dea.location and dea.date so that counting only for TotalVaccinations Column 
+--, (RollingTotalVaccinations/population)*100 --> Gives you an ERROR because you can't use a column you just created.   
+-- If I only partition by dea.location, the new_vaccinations column will start sum as well. 
+-- IMPORTANT to use ORDER BY dea.location and dea.date so that counting only for RollingTotalVaccinations Column 
 FROM PortfolioProject..[Covid Death] dea
 Join PortfolioProject..[Covid Vaccination] vac
 	ON dea.location = vac.location
@@ -124,7 +128,7 @@ SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinatio
 --, (RollingTotalVaccinations/population)*100 --> Gives you an ERROR because you can't use a column you just created.  USE CTE ór 
 -- If I only partition by dea.location, the new_vaccinations column will start sum as well. IMPORTANT to use ORDER BY dea.location and dea.date so that counting only for TotalVaccinations Column 
 FROM PortfolioProject..[Covid Death] dea
-Join PortfolioProject..[Covid Vaccination] vac
+JOIN PortfolioProject..[Covid Vaccination] vac
 	ON dea.location = vac.location
 	and dea.date = vac.date 
 --ORDER BY 2,3
@@ -134,8 +138,9 @@ FROM PopvsVac
 
 
 
--- TEMP TABLE (TEMPORARY TABLE)
-DROP TABLE if exists #RollingPercentPopulationVaccinated -- If any change is made in the table below, it won't affect the outcome 
+-- TEMP TABLE (TEMPORARY TABLE) 
+-- JOIN TWO TABLES 
+DROP TABLE IF exists #RollingPercentPopulationVaccinated -- If any change is made in the table below, it won't affect the outcome 
 CREATE TABLE #RollingPercentPopulationVaccinated 
 (
 Continent nvarchar(50),
@@ -149,10 +154,7 @@ RollingTotalVaccinations numeric
 INSERT INTO #RollingPercentPopulationVaccinated
 SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
 , SUM(vac.new_vaccinations) OVER (Partition by dea.location ORDER BY dea.location, dea.date) as RollingTotalVaccinations
---, (RollingTotalVaccinations/population)*100 --> Gives you an ERROR because you can't use a column you just created.  USE CTE ór 
--- If I only partition by dea.location, the new_vaccinations column will start sum as well. IMPORTANT to use ORDER BY dea.location and dea.date so that counting only for TotalVaccinations Column 
-FROM PortfolioProject..[Covid Death] dea
-Join PortfolioProject..[Covid Vaccination] vac
+JOIN PortfolioProject..[Covid Vaccination] vac
 	ON dea.location = vac.location
 	and dea.date = vac.date 
 --ORDER BY 2,3
@@ -167,7 +169,7 @@ SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinatio
 --, (RollingTotalVaccinations/population)*100 --> Gives you an ERROR because you can't use a column you just created.  USE CTE ór 
 -- If I only partition by dea.location, the new_vaccinations column will start sum as well. IMPORTANT to use ORDER BY dea.location and dea.date so that counting only for TotalVaccinations Column 
 FROM PortfolioProject..[Covid Death] dea
-Join PortfolioProject..[Covid Vaccination] vac
+JOIN PortfolioProject..[Covid Vaccination] vac
 	ON dea.location = vac.location
 	and dea.date = vac.date 
 --ORDER BY 2,3
